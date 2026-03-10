@@ -2,17 +2,30 @@
 """
 Uni Lübeck Modulhandbuch Scraper
 =================================
-Scrapes a module handbook page and produces a JSON file with:
-  - title        : module name
-  - code         : module code (e.g. "CS5158")
-  - kp           : credit points (integer)
-  - structure    : teaching format, e.g. "2V+1Ü"
-  - category     : subject area (Informatik, Psychologie, …)
-  - other_courses: list of other study programmes that use this module
+Scrapes a module handbook page and produces a JSON file with per-module:
+  - title, code, kp
+  - structure        : compact teaching format, e.g. "2V+2S" (derived from SWS)
+  - duration         : "1 Semester"
+  - offered          : "Jedes Wintersemester"
+  - study_programs   : list of programmes that include this module
+  - lehrveranstaltungen : list of course entries (Vorlesung, Seminar, …)
+  - workload         : list of workload entries
+  - content          : list of Lehrinhalte
+  - competencies     : list of Qualifikationsziele/Kompetenzen
+  - grading          : list of grading/exam info
+  - prerequisites_for: list of modules this is a prerequisite for
+  - prerequisites    : list of required prerequisite modules
+  - responsible      : list of Modulverantwortliche
+  - instructors      : list of Lehrende
+  - literature       : list of literature entries
+  - language         : language of instruction
+  - remarks          : Bemerkungen (free text)
+  - last_changed     : date string
+  - other_courses    : other programmes (Verwendbarkeit)
 
 Usage
 -----
-  python3 scraper.py [URL] [--output FILE] [--delay SECONDS]
+  python3 scraper.py [URL] [--output FILE] [--delay SECONDS] [--limit N]
 
 Defaults
 --------
@@ -51,48 +64,32 @@ HEADERS = {
 }
 
 # ---------------------------------------------------------------------------
-# Label keyword lists (lowercase substrings)
+# Label keyword lists – used by parse_index_page table-column detection
 # ---------------------------------------------------------------------------
 
 KP_LABELS = [
-    "kreditpunkt",      # "Kreditpunkte", "Kreditpunkte (KP)"
-    "leistungspunkt",
-    "credit point",
-    " kp",
-    "(kp)",
+    "kreditpunkt", "leistungspunkt", "credit point", " kp", "(kp)",
 ]
 
 STRUCTURE_LABELS = [
-    "lehrform",
-    "lehr- und lernform",
-    "veranstaltungsform",
-    "unterrichtsform",
-    "sws",              # Semesterwochenstunden – contains the format
-    "semesterwochenstunden",
+    "lehrform", "lehr- und lernform", "veranstaltungsform",
+    "unterrichtsform", "sws", "semesterwochenstunden",
 ]
 
 COURSES_LABELS = [
-    "verwendbarkeit",
-    "eingesetzt in",
-    "weitere studieng",
-    "other program",
-    "zugeordnet",
+    "verwendbarkeit", "eingesetzt in", "weitere studieng",
+    "other program", "zugeordnet",
 ]
 
 TITLE_LABELS = [
-    "modulbezeichnung",
-    "bezeichnung",
-    "modulname",
-    "name",
-    "titel",
+    "modulbezeichnung", "bezeichnung", "modulname", "name", "titel",
 ]
 
 # ---------------------------------------------------------------------------
 # Regex patterns
 # ---------------------------------------------------------------------------
 
-# Matches "Modul CS5158-KP04, CS5158" or "Modul PY2300-KP06" in a heading.
-# This is what Uni Lübeck puts in its <h1>.
+# Matches "Modul CS5158-KP04, CS5158" in a heading
 MODUL_CODE_H1_RE = re.compile(r"^\s*Modul\s+(.+)", re.I)
 
 # Extracts KP from a code fragment like "CS5158-KP04" → 4
@@ -109,7 +106,6 @@ KP_LABELED_RE = re.compile(
 )
 
 # Teaching-format: "2V+1Ü", "4V", "3V/2Ü/1P", "2S", "1K"
-# Uses negative lookahead (?!\w) so "S" won't match inside "Semester".
 STRUCTURE_RE = re.compile(
     r"\b\d+\s*(?:V|Ü|S|P|K|T)(?!\w)"
     r"(?:\s*[+/]\s*\d+\s*(?:V|Ü|S|P|K|T)(?!\w))*",
@@ -127,6 +123,21 @@ NON_MODULE_TITLE_RE = re.compile(
     r"modulhandbuch|module\s+(manual|guide|handbook)|master.{0,30}(medieninformatik|informatik)",
     re.I,
 )
+
+# Matches "(Seminar, 2 SWS)" or "(Vorlesung, 4 SWS)" in Lehrveranstaltungen items
+SWS_ENTRY_RE = re.compile(r"\(([^,)]+),\s*(\d+)\s*SWS\)", re.I)
+
+# Map German course-type names → compact letter codes
+SWS_TYPE_MAP = {
+    "vorlesung": "V",
+    "übung": "Ü", "uebung": "Ü",
+    "seminar": "S",
+    "praktikum": "P",
+    "kolloquium": "K",
+    "tutorial": "T",
+    "tutorium": "T",
+    "projekt": "Proj",
+}
 
 # ---------------------------------------------------------------------------
 # HTTP helpers
@@ -167,9 +178,7 @@ def label_matches(label: str, candidates: list[str]) -> bool:
 def extract_kp_from_code(code_text: str) -> int | None:
     """Extract KP from a module-code string like 'CS5158-KP04'."""
     m = KP_IN_CODE_RE.search(code_text)
-    if m:
-        return int(m.group(1))
-    return None
+    return int(m.group(1)) if m else None
 
 
 def extract_kp_from_value(value: str) -> int | None:
@@ -193,43 +202,188 @@ def extract_primary_code(code_text: str) -> str:
     return m.group(1) if m else ""
 
 
+def derive_structure_from_courses(courses: list[str]) -> str:
+    """Build compact format string like '2V+2S' from Lehrveranstaltungen items."""
+    parts = []
+    for entry in courses:
+        m = SWS_ENTRY_RE.search(entry)
+        if m:
+            type_name = m.group(1).strip().lower()
+            sws = m.group(2)
+            code = next((v for k, v in SWS_TYPE_MAP.items() if k in type_name), None)
+            if code:
+                parts.append(f"{sws}{code}")
+    return "+".join(parts) if parts else ""
+
+
 # ---------------------------------------------------------------------------
 # Core data extraction
 # ---------------------------------------------------------------------------
 
-def _apply_label_value(module: dict, label: str, value: str) -> None:
-    """Update *module* in-place from a (label, value) pair."""
-    if label_matches(label, KP_LABELS) and module["kp"] is None:
-        module["kp"] = extract_kp_from_value(value)
+def _empty_module(url: str) -> dict:
+    """Return a fresh module dict with all fields initialised."""
+    return {
+        "title": "",
+        "code": "",
+        "kp": None,
+        "structure": "",
+        "duration": "",
+        "offered": "",
+        "study_programs": [],
+        "lehrveranstaltungen": [],
+        "workload": [],
+        "content": [],
+        "competencies": [],
+        "grading": [],
+        "prerequisites_for": [],
+        "prerequisites": [],
+        "responsible": [],
+        "instructors": [],
+        "literature": [],
+        "language": "",
+        "remarks": "",
+        "last_changed": "",
+        "other_courses": [],
+        "url": url,
+    }
 
-    if label_matches(label, STRUCTURE_LABELS) and not module["structure"]:
-        s = extract_structure(value)
-        module["structure"] = s if s else value.strip()
 
-    if label_matches(label, COURSES_LABELS):
-        parts = re.split(r"[;,\n]+", value)
-        seen = set(module["other_courses"])
-        for p in parts:
-            p = clean(p)
-            if p and p not in seen:
-                module["other_courses"].append(p)
-                seen.add(p)
+def _extend_list(module: dict, key: str, items: list[str]) -> None:
+    """Append deduplicated, cleaned strings to module[key]."""
+    existing = set(module[key])
+    for item in items:
+        item = clean(item)
+        if item and item not in existing:
+            module[key].append(item)
+            existing.add(item)
 
-    if label_matches(label, TITLE_LABELS) and not module["title"]:
-        module["title"] = clean(value)
+
+def _process_label_content(module: dict, label: str, elem) -> None:
+    """
+    Route a (label, content-element) pair to the correct module field.
+
+    Extracts <li> items when present; otherwise falls back to newline-split
+    text so that multi-value fields stored as plain text are still split.
+    """
+    label_lc = label.lower().rstrip(":")
+
+    # Prefer explicit <li> items; fall back to newline-split text
+    li_items = [clean(li.get_text()) for li in elem.find_all("li") if clean(li.get_text())]
+    raw_text = clean(elem.get_text())
+    if not li_items:
+        lines = [clean(ln) for ln in elem.get_text("\n").split("\n") if clean(ln)]
+        if len(lines) > 1:
+            li_items = lines
+    items = li_items  # may be empty → callers fall back to raw_text
+
+    # ── KP ──────────────────────────────────────────────────────────────────
+    if any(k in label_lc for k in ["kreditpunkt", "leistungspunkt", "credit point", " kp", "(kp)"]):
+        if module["kp"] is None:
+            module["kp"] = extract_kp_from_value(raw_text)
+
+    # ── Duration / Offered ──────────────────────────────────────────────────
+    elif "dauer" in label_lc:
+        if not module["duration"]:
+            module["duration"] = raw_text
+
+    elif any(k in label_lc for k in ["angebotsturnus", "turnus"]):
+        if not module["offered"]:
+            module["offered"] = raw_text
+
+    # ── Study programmes ────────────────────────────────────────────────────
+    elif any(k in label_lc for k in ["studiengang", "fachgebiet", "fachsemester"]):
+        _extend_list(module, "study_programs", items or [raw_text])
+
+    # ── Lehrveranstaltungen (course list) → also derive structure ───────────
+    elif "lehrveranstaltung" in label_lc:
+        _extend_list(module, "lehrveranstaltungen", items or [raw_text])
+        if not module["structure"] and module["lehrveranstaltungen"]:
+            module["structure"] = derive_structure_from_courses(module["lehrveranstaltungen"])
+
+    # ── Lehrform / Unterrichtsform (explicit structure label) ───────────────
+    elif any(k in label_lc for k in ["lehrform", "lehr- und lernform", "veranstaltungsform", "unterrichtsform"]):
+        if not module["structure"]:
+            s = extract_structure(raw_text)
+            module["structure"] = s if s else raw_text
+
+    # ── Workload ─────────────────────────────────────────────────────────────
+    elif any(k in label_lc for k in ["workload", "arbeitsaufwand"]):
+        _extend_list(module, "workload", items or [raw_text])
+
+    # ── Lehrinhalte ──────────────────────────────────────────────────────────
+    elif any(k in label_lc for k in ["lehrinhalt", "inhalt"]):
+        _extend_list(module, "content", items or [raw_text])
+
+    # ── Qualifikationsziele / Kompetenzen ───────────────────────────────────
+    elif any(k in label_lc for k in ["qualifikationsziel", "kompetenz"]):
+        _extend_list(module, "competencies", items or [raw_text])
+
+    # ── Grading / Exams ──────────────────────────────────────────────────────
+    elif any(k in label_lc for k in ["vergabe von leistungspunkt", "benotung", "prüfungsleistung"]):
+        _extend_list(module, "grading", items or [raw_text])
+
+    # ── Prerequisites (forward) ──────────────────────────────────────────────
+    elif "voraussetzung für" in label_lc:
+        _extend_list(module, "prerequisites_for", items or [raw_text])
+
+    # ── Prerequisites (required) ─────────────────────────────────────────────
+    elif any(k in label_lc for k in ["setzt voraus", "voraussetzung:"]):
+        _extend_list(module, "prerequisites", items or [raw_text])
+
+    # ── Responsible / Instructors ────────────────────────────────────────────
+    elif "modulverantwortlich" in label_lc:
+        _extend_list(module, "responsible", items or [raw_text])
+
+    elif any(k in label_lc for k in ["lehrende", "dozent"]):
+        _extend_list(module, "instructors", items or [raw_text])
+
+    # ── Literature ───────────────────────────────────────────────────────────
+    elif "literatur" in label_lc:
+        _extend_list(module, "literature", items or [raw_text])
+
+    # ── Language ─────────────────────────────────────────────────────────────
+    elif "sprache" in label_lc:
+        if not module["language"]:
+            module["language"] = items[0] if items else raw_text
+
+    # ── Remarks ──────────────────────────────────────────────────────────────
+    elif any(k in label_lc for k in ["bemerkung", "hinweis"]):
+        if not module["remarks"]:
+            module["remarks"] = raw_text
+
+    # ── Last changed ─────────────────────────────────────────────────────────
+    elif any(k in label_lc for k in ["letzte änderung", "stand:"]):
+        if not module["last_changed"]:
+            module["last_changed"] = raw_text
+
+    # ── Verwendbarkeit / other study programmes ───────────────────────────────
+    elif any(k in label_lc for k in ["verwendbarkeit", "eingesetzt in", "weitere studieng", "other program", "zugeordnet"]):
+        _extend_list(module, "other_courses",
+                     items or [p for p in re.split(r"[;,\n]+", raw_text) if p.strip()])
+
+    # ── Title (fallback from labeled row) ───────────────────────────────────
+    elif any(k in label_lc for k in ["modulbezeichnung", "bezeichnung", "modulname", "name", "titel"]):
+        if not module["title"]:
+            module["title"] = raw_text
+
+    # ── SWS fallback for structure ───────────────────────────────────────────
+    if not module["structure"] and any(k in label_lc for k in ["sws", "semesterwochenstunden"]):
+        s = extract_structure(raw_text)
+        if s:
+            module["structure"] = s
 
 
 def _scan_structured_markup(soup: BeautifulSoup, module: dict) -> None:
-    """Walk all <table> rows and <dl> items in *soup* and apply label→value."""
+    """Walk all <table> rows and <dl> items in *soup* and route each pair."""
     for table in soup.find_all("table"):
         for row in table.find_all("tr"):
             cells = row.find_all(["th", "td"])
             if len(cells) >= 2:
-                _apply_label_value(module, clean(cells[0].get_text()), clean(cells[1].get_text()))
+                _process_label_content(module, clean(cells[0].get_text()), cells[1])
 
     for dl in soup.find_all("dl"):
         for dt, dd in zip(dl.find_all("dt"), dl.find_all("dd")):
-            _apply_label_value(module, clean(dt.get_text()), clean(dd.get_text()))
+            _process_label_content(module, clean(dt.get_text()), dd)
 
 
 # ---------------------------------------------------------------------------
@@ -244,18 +398,10 @@ def parse_module_page(soup: BeautifulSoup, url: str) -> dict:
     The real module name appears in a subsequent heading or in a labeled
     table/dl row.  We handle both cases.
     """
-    module: dict = {
-        "title": "",
-        "code": "",
-        "kp": None,
-        "structure": "",
-        "other_courses": [],
-        "url": url,
-    }
+    module = _empty_module(url)
 
     # ── Step 1: inspect the first heading ──────────────────────────────────
     first_heading = soup.find(re.compile(r"^h[1-4]$"))
-    h1_code_part = ""
     if first_heading:
         h1_text = clean(first_heading.get_text())
         m = MODUL_CODE_H1_RE.match(h1_text)
@@ -270,28 +416,22 @@ def parse_module_page(soup: BeautifulSoup, url: str) -> dict:
             module["title"] = h1_text
 
     # ── Step 2: if we got a code heading, find the real title ───────────────
-    if not module["title"]:
-        # (a) Next heading after h1
-        if first_heading:
-            for sib in first_heading.find_next_siblings(re.compile(r"^h[2-6]$")):
-                candidate = clean(sib.get_text())
-                if candidate and not MODUL_CODE_H1_RE.match(candidate):
-                    module["title"] = candidate
-                    break
-
-        # (b) Labeled row: "Modulbezeichnung", "Name", "Titel", …
-        # (handled in step 3 via _apply_label_value → TITLE_LABELS)
+    if not module["title"] and first_heading:
+        for sib in first_heading.find_next_siblings(re.compile(r"^h[2-6]$")):
+            candidate = clean(sib.get_text())
+            if candidate and not MODUL_CODE_H1_RE.match(candidate):
+                module["title"] = candidate
+                break
 
     # ── Step 3: walk tables and dl for labeled fields ──────────────────────
     _scan_structured_markup(soup, module)
 
-    # ── Step 4: fallback – scan page text for structure only ───────────────
-    # (Don't scan full text for KP – too many false positives)
+    # ── Step 4: structure fallback – scan full page text ───────────────────
     if not module["structure"]:
         full_text = soup.get_text(" ", strip=True)
         module["structure"] = extract_structure(full_text)
 
-    # ── Step 5: if still no title, take the <title> tag (minus site name) ──
+    # ── Step 5: title fallback – use <title> tag ────────────────────────────
     if not module["title"]:
         page_title = soup.find("title")
         if page_title:
@@ -380,14 +520,8 @@ def parse_index_page(soup: BeautifulSoup, base_url: str) -> list[dict]:
         heading = block.find(re.compile(r"^h[1-6]$"))
         if not heading:
             continue
-        mod: dict = {
-            "title": clean(heading.get_text()),
-            "code": "",
-            "kp": None,
-            "structure": "",
-            "other_courses": [],
-            "url": base_url,
-        }
+        mod = _empty_module(base_url)
+        mod["title"] = clean(heading.get_text())
         # Skip blocks whose heading is just an index/section title
         if NON_MODULE_TITLE_RE.search(mod["title"]):
             continue
@@ -422,10 +556,7 @@ def parse_index_page(soup: BeautifulSoup, base_url: str) -> list[dict]:
                 continue
             for row in table.find_all("tr")[1:]:
                 cells = row.find_all(["td", "th"])
-                mod: dict = {
-                    "title": "", "code": "", "kp": None,
-                    "structure": "", "other_courses": [], "url": base_url,
-                }
+                mod = _empty_module(base_url)
                 for idx, field in col_map.items():
                     if idx >= len(cells):
                         continue
