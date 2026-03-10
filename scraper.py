@@ -583,7 +583,8 @@ def parse_index_page(soup: BeautifulSoup, base_url: str) -> list[dict]:
 # Main scraping orchestration
 # ---------------------------------------------------------------------------
 
-def scrape(start_url: str, delay: float = 1.0, limit: int | None = None) -> list[dict]:
+def scrape(start_url: str, delay: float = 1.0, limit: int | None = None,
+           save_html: str | None = None) -> list[dict]:
     print(f"Fetching index: {start_url}")
     soup = fetch(start_url)
     if soup is None:
@@ -603,6 +604,10 @@ def scrape(start_url: str, delay: float = 1.0, limit: int | None = None) -> list
             print(f"  [{i:3d}/{len(links)}] {url}")
             sub = fetch(url)
             if sub:
+                if save_html and i == 1:
+                    with open(save_html, "w", encoding="utf-8") as fh:
+                        fh.write(sub.prettify())
+                    print(f"  [debug] HTML of first page saved to {save_html}")
                 mod = parse_module_page(sub, url)
                 # Skip pages that look like overview/index pages
                 if mod["title"] and not NON_MODULE_TITLE_RE.search(mod["title"]):
@@ -647,9 +652,14 @@ def main() -> None:
         "--limit", "-n", "--test", type=int, default=None, metavar="N",
         help="Only fetch the first N module pages (quick test run)",
     )
+    parser.add_argument(
+        "--save-html", metavar="FILE",
+        help="Save the raw HTML of the first module page to FILE for debugging",
+    )
     args = parser.parse_args()
 
-    modules = scrape(args.url, delay=args.delay, limit=args.limit)
+    modules = scrape(args.url, delay=args.delay, limit=args.limit,
+                     save_html=args.save_html)
 
     output = {
         "source": args.url,
