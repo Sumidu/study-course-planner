@@ -1,9 +1,11 @@
 #!/usr/bin/env python3
 """
-Fetch a module detail page and print the HTML structure around known labels.
+Print a compact structural summary of a module detail page.
+Paste the output directly into the chat.
 Usage: python3 debug_page.py [URL]
 """
 import sys
+import re
 import requests
 from bs4 import BeautifulSoup
 
@@ -22,59 +24,67 @@ HEADERS = {
 }
 
 resp = requests.get(URL, headers=HEADERS, timeout=20)
-print(f"HTTP {resp.status_code}")
+print(f"HTTP {resp.status_code}  url={URL}\n")
 if resp.status_code != 200:
     sys.exit(1)
 
 soup = BeautifulSoup(resp.text, "lxml")
 
-# 1. Show all tag types used on the page (frequency)
-from collections import Counter
-tag_counts = Counter(tag.name for tag in soup.find_all(True))
-print("\nTag frequency:")
-for tag, count in tag_counts.most_common(20):
-    print(f"  {tag:15s} {count}")
+KNOWN = ["dauer", "angebotsturnus", "leistungspunkt", "studiengang",
+         "lehrveranstaltung", "workload", "lehrinhalt", "qualifikation",
+         "vergabe", "voraussetzung", "modulverantwortlich", "lehrende",
+         "literatur", "sprache", "bemerkung", "letzte"]
 
-# 2. Show all <dl> blocks
-print("\n\n=== DL blocks ===")
-for i, dl in enumerate(soup.find_all("dl")):
-    print(f"\n-- dl #{i} --")
-    print(dl.prettify()[:2000])
-
-# 3. Show all <table> blocks
-print("\n\n=== TABLE blocks ===")
-for i, table in enumerate(soup.find_all("table")):
-    print(f"\n-- table #{i} --")
-    print(table.prettify()[:2000])
-
-# 4. Find any element whose text contains known keywords
-KEYWORDS = ["Dauer", "Leistungspunkt", "Lehrveranstaltung", "Studiengang", "Workload", "Lehrinhalt"]
-print("\n\n=== Elements containing keywords ===")
-for kw in KEYWORDS:
-    elems = [e for e in soup.find_all(True) if kw.lower() in e.get_text().lower() and not e.find(True)]
-    if elems:
-        print(f"\n'{kw}' found in leaf elements:")
-        for e in elems[:5]:
-            print(f"  <{e.name} class={e.get('class')}> {repr(e.get_text()[:80])}")
-            # Show parent chain
+print("=" * 60)
+print("ELEMENTS CONTAINING KNOWN LABELS (leaf nodes + parent chain)")
+print("=" * 60)
+for kw in KNOWN:
+    hits = [e for e in soup.find_all(True)
+            if kw in e.get_text().lower() and not e.find(True)]
+    if hits:
+        print(f"\n[{kw}]")
+        for e in hits[:3]:
+            txt = e.get_text().strip()[:60].replace("\n", " ")
+            cls = e.get("class", "")
             parents = []
             p = e.parent
-            while p and p.name not in ("body", "[document]") and len(parents) < 4:
-                parents.append(f"<{p.name} class={p.get('class')}>")
+            while p and p.name not in ("body", "[document]", None) and len(parents) < 5:
+                pcls = ".".join(p.get("class", []))
+                parents.append(f"{p.name}{'.' + pcls if pcls else ''}")
                 p = p.parent
-            print(f"    parents: {' > '.join(reversed(parents))}")
+            print(f"  <{e.name}{'.' + '.'.join(cls) if cls else ''}> {repr(txt)}")
+            print(f"    in: {' > '.join(reversed(parents))}")
 
-# 5. Dump main content area HTML (first 3000 chars)
-print("\n\n=== Main content HTML (first 3000 chars) ===")
-main = (
-    soup.find("main")
-    or soup.find(id=lambda x: x and any(k in x.lower() for k in ["content", "main"]))
-    or soup.find(class_=lambda x: x and any(k in " ".join(x).lower() for k in ["content", "main"]))
-)
-if main:
-    print(main.prettify()[:3000])
-else:
-    print("No <main> found. Dumping <body> start:")
-    body = soup.find("body")
-    if body:
-        print(body.prettify()[:3000])
+print("\n" + "=" * 60)
+print("ALL DL BLOCKS (dt → dd pairs)")
+print("=" * 60)
+for i, dl in enumerate(soup.find_all("dl")):
+    print(f"\n-- dl #{i} --")
+    for dt, dd in zip(dl.find_all("dt"), dl.find_all("dd")):
+        dt_txt = dt.get_text().strip()[:50]
+        dd_txt = dd.get_text().strip()[:80].replace("\n", " | ")
+        print(f"  dt: {repr(dt_txt)}")
+        print(f"  dd: {repr(dd_txt)}")
+
+print("\n" + "=" * 60)
+print("HEADINGS (h1-h5) IN MAIN CONTENT")
+print("=" * 60)
+main = soup.find("main") or soup.find(id=re.compile(r"content|main", re.I)) or soup
+for h in main.find_all(re.compile(r"^h[1-5]$")):
+    txt = h.get_text().strip()[:80]
+    cls = ".".join(h.get("class", []))
+    print(f"  <{h.name}{'.' + cls if cls else ''}> {repr(txt)}")
+    # Show immediately following sibling
+    sib = h.find_next_sibling()
+    if sib:
+        stxt = sib.get_text().strip()[:80].replace("\n", " | ")
+        scls = ".".join(sib.get("class", []))
+        print(f"    next: <{sib.name}{'.' + scls if scls else ''}> {repr(stxt)}")
+
+print("\n" + "=" * 60)
+print("FIRST 30 TAGS INSIDE MAIN CONTENT (name + class)")
+print("=" * 60)
+for tag in list(main.find_all(True))[:30]:
+    cls = ".".join(tag.get("class", []))
+    txt = tag.get_text().strip()[:40].replace("\n", " ")
+    print(f"  <{tag.name}{'.' + cls if cls else ''}> {repr(txt)}")
