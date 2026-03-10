@@ -125,7 +125,8 @@ NON_MODULE_TITLE_RE = re.compile(
 )
 
 # Matches "(Seminar, 2 SWS)" or "(Vorlesung, 4 SWS)" in Lehrveranstaltungen items
-SWS_ENTRY_RE = re.compile(r"\(([^,)]+),\s*(\d+)\s*SWS\)", re.I)
+# re.S so \s+ matches embedded newlines in the raw HTML text
+SWS_ENTRY_RE = re.compile(r"\(([^,)]+),\s*(\d+)\s*SWS\)", re.I | re.S)
 
 # Map German course-type names → compact letter codes
 SWS_TYPE_MAP = {
@@ -374,7 +375,7 @@ def _process_label_content(module: dict, label: str, elem) -> None:
 
 
 def _scan_structured_markup(soup: BeautifulSoup, module: dict) -> None:
-    """Walk all <table> rows and <dl> items in *soup* and route each pair."""
+    """Walk <table> rows, <dl> items, and <h3>/<h4>+sibling pairs in *soup*."""
     for table in soup.find_all("table"):
         for row in table.find_all("tr"):
             cells = row.find_all(["th", "td"])
@@ -384,6 +385,13 @@ def _scan_structured_markup(soup: BeautifulSoup, module: dict) -> None:
     for dl in soup.find_all("dl"):
         for dt, dd in zip(dl.find_all("dt"), dl.find_all("dd")):
             _process_label_content(module, clean(dt.get_text()), dd)
+
+    # Uni Lübeck TYPO3 layout: <h4>Label</h4> followed by <p> or <ul>
+    for h in soup.find_all(["h3", "h4"]):
+        label = clean(h.get_text())
+        value_elem = h.find_next_sibling(["p", "ul", "ol", "div"])
+        if value_elem:
+            _process_label_content(module, label, value_elem)
 
 
 # ---------------------------------------------------------------------------
