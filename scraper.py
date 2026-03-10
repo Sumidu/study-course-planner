@@ -4,9 +4,10 @@ Uni Lübeck Modulhandbuch Scraper
 =================================
 Scrapes a module handbook page and produces a JSON file with:
   - title        : module name
-  - code         : module code / number (if found)
+  - code         : module code (e.g. "CS5158")
   - kp           : credit points (integer)
-  - structure    : teaching format, e.g. "2V/1Ü" or "2V+1Ü"
+  - structure    : teaching format, e.g. "2V+1Ü"
+  - category     : subject area (Informatik, Psychologie, …)
   - other_courses: list of other study programmes that use this module
 
 Usage
@@ -15,10 +16,10 @@ Usage
 
 Defaults
 --------
-  URL     = https://www2.uni-luebeck.de/studium/informatik-und-mathematik/
-            medieninformatik/master-studiengang-medieninformatik/modulhandbuch/
-  output  = modules.json
-  delay   = 1.0   (seconds between requests, be polite to the server)
+  URL    = https://www2.uni-luebeck.de/studium/informatik-und-mathematik/
+           medieninformatik/master-studiengang-medieninformatik/modulhandbuch/
+  output = modules.json
+  delay  = 1.0  (seconds between requests – be polite)
 """
 
 import argparse
@@ -32,7 +33,7 @@ import requests
 from bs4 import BeautifulSoup
 
 # ---------------------------------------------------------------------------
-# Constants
+# Constants / configuration
 # ---------------------------------------------------------------------------
 
 DEFAULT_URL = (
@@ -49,12 +50,14 @@ HEADERS = {
     "Accept-Language": "de-DE,de;q=0.9,en;q=0.8",
 }
 
-# German labels used on the page, mapped to our field names.
-# Keys are lowercase substrings to match flexibly.
+# ---------------------------------------------------------------------------
+# Label keyword lists (lowercase substrings)
+# ---------------------------------------------------------------------------
+
 KP_LABELS = [
-    "kreditpunkt",  # "Kreditpunkte", "Kreditpunkte (KP)"
+    "kreditpunkt",      # "Kreditpunkte", "Kreditpunkte (KP)"
     "leistungspunkt",
-    "credit",
+    "credit point",
     " kp",
     "(kp)",
 ]
@@ -62,34 +65,68 @@ KP_LABELS = [
 STRUCTURE_LABELS = [
     "lehrform",
     "lehr- und lernform",
-    "sws",
-    "semesterwochenstunden",
     "veranstaltungsform",
     "unterrichtsform",
+    "sws",              # Semesterwochenstunden – contains the format
+    "semesterwochenstunden",
 ]
 
 COURSES_LABELS = [
     "verwendbarkeit",
-    "einsatz",
-    "studiengang",
-    "eingesetzt",
-    "zugeordnet",
-    "genutzt",
-    "other program",
+    "eingesetzt in",
     "weitere studieng",
+    "other program",
+    "zugeordnet",
 ]
 
-# Regex patterns ---------------------------------------------------------------
+TITLE_LABELS = [
+    "modulbezeichnung",
+    "bezeichnung",
+    "modulname",
+    "name",
+    "titel",
+]
 
-# Matches things like "4", "4,0", "4.0"
-KP_NUMBER_RE = re.compile(r"\b(\d+(?:[.,]\d+)?)\s*(?:KP|CP|ECTS|Kreditpunkte?)?\b", re.I)
+# ---------------------------------------------------------------------------
+# Regex patterns
+# ---------------------------------------------------------------------------
 
-# Matches teaching formats: "2V+1Ü", "2V/1Ü", "4V", "2S", "3V+1Ü+1P", …
-STRUCTURE_RE = re.compile(r"\d+\s*[VvSsPpÜü][A-Za-zÜüÖöÄä]*(?:\s*[+/]\s*\d+\s*[VvSsPpÜü][A-Za-zÜüÖöÄä]*)*")
+# Matches "Modul CS5158-KP04, CS5158" or "Modul PY2300-KP06" in a heading.
+# This is what Uni Lübeck puts in its <h1>.
+MODUL_CODE_H1_RE = re.compile(r"^\s*Modul\s+(.+)", re.I)
 
-# Module-page link heuristic – picks up URLs that look like a module sub-page
-MODULE_HREF_RE = re.compile(r"/modul(?:e|handbuch)?/|/module\b", re.I)
+# Extracts KP from a code fragment like "CS5158-KP04" → 4
+KP_IN_CODE_RE = re.compile(r"-KP(\d+)", re.I)
 
+# Extracts the primary code (first token) from "CS5158-KP04, CS5158"
+PRIMARY_CODE_RE = re.compile(r"\b([A-Z]{2,4}\d{3,4}[A-Z0-9]*)\b")
+
+# KP in a labeled field value: "6 Kreditpunkte", "6 KP", "ECTS: 4"
+KP_LABELED_RE = re.compile(
+    r"(\d+(?:[.,]\d+)?)\s*(?:KP|CP|ECTS|Kreditpunkte?|Leistungspunkte?)\b"
+    r"|(?:KP|CP|ECTS|Kreditpunkte?)\s*[:\-]?\s*(\d+(?:[.,]\d+)?)",
+    re.I,
+)
+
+# Teaching-format: "2V+1Ü", "4V", "3V/2Ü/1P", "2S", "1K"
+# Uses negative lookahead (?!\w) so "S" won't match inside "Semester".
+STRUCTURE_RE = re.compile(
+    r"\b\d+\s*(?:V|Ü|S|P|K|T)(?!\w)"
+    r"(?:\s*[+/]\s*\d+\s*(?:V|Ü|S|P|K|T)(?!\w))*",
+    re.UNICODE,
+)
+
+# URLs that are module detail pages (Uni Lübeck pattern: /details/NNN/)
+DETAIL_URL_RE = re.compile(r"/details/\d+/?$")
+
+# URLs that look like sub-pages of a module handbook
+MODUL_URL_RE = re.compile(r"/modulhandbuch/|/modul(?:e|liste)?/|/module\b", re.I)
+
+# Pages that are clearly index/overview pages – skip as modules
+NON_MODULE_TITLE_RE = re.compile(
+    r"modulhandbuch|module\s+(manual|guide|handbook)|master.{0,30}(medieninformatik|informatik)",
+    re.I,
+)
 
 # ---------------------------------------------------------------------------
 # HTTP helpers
@@ -100,7 +137,7 @@ SESSION.headers.update(HEADERS)
 
 
 def fetch(url: str, retries: int = 3) -> BeautifulSoup | None:
-    """Fetch *url* and return a BeautifulSoup object, or None on failure."""
+    """Fetch *url* and return a BeautifulSoup, or None on failure."""
     for attempt in range(1, retries + 1):
         try:
             resp = SESSION.get(url, timeout=20)
@@ -115,48 +152,97 @@ def fetch(url: str, retries: int = 3) -> BeautifulSoup | None:
 
 
 # ---------------------------------------------------------------------------
-# Text extraction helpers
+# Text helpers
 # ---------------------------------------------------------------------------
 
 def clean(text: str) -> str:
     return " ".join(text.split())
 
 
-def extract_kp(text: str) -> int | None:
-    """Return the first integer KP value found in *text*, or None."""
-    match = KP_NUMBER_RE.search(text)
-    if match:
-        raw = match.group(1).replace(",", ".")
-        try:
-            return int(float(raw))
-        except ValueError:
-            pass
+def label_matches(label: str, candidates: list[str]) -> bool:
+    lc = label.lower()
+    return any(c in lc for c in candidates)
+
+
+def extract_kp_from_code(code_text: str) -> int | None:
+    """Extract KP from a module-code string like 'CS5158-KP04'."""
+    m = KP_IN_CODE_RE.search(code_text)
+    if m:
+        return int(m.group(1))
+    return None
+
+
+def extract_kp_from_value(value: str) -> int | None:
+    """Extract KP from a labeled field value like '6 Kreditpunkte'."""
+    m = KP_LABELED_RE.search(value)
+    if m:
+        raw = m.group(1) or m.group(2)
+        return int(float(raw.replace(",", ".")))
     return None
 
 
 def extract_structure(text: str) -> str:
-    """Return the first teaching-format token found in *text*, or ''."""
-    match = STRUCTURE_RE.search(text)
-    return match.group(0).strip() if match else ""
+    """Return the first teaching-format token from *text*, or ''."""
+    m = STRUCTURE_RE.search(text)
+    return m.group(0).strip() if m else ""
 
 
-def label_matches(label: str, candidates: list[str]) -> bool:
-    label_lower = label.lower()
-    return any(c in label_lower for c in candidates)
+def extract_primary_code(code_text: str) -> str:
+    """Return the first module-code token, e.g. 'CS5158' from 'CS5158-KP04, CS5158'."""
+    m = PRIMARY_CODE_RE.search(code_text)
+    return m.group(1) if m else ""
 
 
 # ---------------------------------------------------------------------------
-# Parser: single module page
+# Core data extraction
+# ---------------------------------------------------------------------------
+
+def _apply_label_value(module: dict, label: str, value: str) -> None:
+    """Update *module* in-place from a (label, value) pair."""
+    if label_matches(label, KP_LABELS) and module["kp"] is None:
+        module["kp"] = extract_kp_from_value(value)
+
+    if label_matches(label, STRUCTURE_LABELS) and not module["structure"]:
+        s = extract_structure(value)
+        module["structure"] = s if s else value.strip()
+
+    if label_matches(label, COURSES_LABELS):
+        parts = re.split(r"[;,\n]+", value)
+        seen = set(module["other_courses"])
+        for p in parts:
+            p = clean(p)
+            if p and p not in seen:
+                module["other_courses"].append(p)
+                seen.add(p)
+
+    if label_matches(label, TITLE_LABELS) and not module["title"]:
+        module["title"] = clean(value)
+
+
+def _scan_structured_markup(soup: BeautifulSoup, module: dict) -> None:
+    """Walk all <table> rows and <dl> items in *soup* and apply label→value."""
+    for table in soup.find_all("table"):
+        for row in table.find_all("tr"):
+            cells = row.find_all(["th", "td"])
+            if len(cells) >= 2:
+                _apply_label_value(module, clean(cells[0].get_text()), clean(cells[1].get_text()))
+
+    for dl in soup.find_all("dl"):
+        for dt, dd in zip(dl.find_all("dt"), dl.find_all("dd")):
+            _apply_label_value(module, clean(dt.get_text()), clean(dd.get_text()))
+
+
+# ---------------------------------------------------------------------------
+# Module detail-page parser
 # ---------------------------------------------------------------------------
 
 def parse_module_page(soup: BeautifulSoup, url: str) -> dict:
     """
-    Extract module data from a dedicated module sub-page.
+    Extract module data from a Uni Lübeck detail page.
 
-    Strategy:
-      1. Find the page title (h1 / h2).
-      2. Walk every <table> and <dl> looking for labelled rows.
-      3. Fall back to full-text heuristics.
+    Uni Lübeck puts "Modul CS5158-KP04, CS5158" in the <h1>.
+    The real module name appears in a subsequent heading or in a labeled
+    table/dl row.  We handle both cases.
     """
     module: dict = {
         "title": "",
@@ -167,99 +253,97 @@ def parse_module_page(soup: BeautifulSoup, url: str) -> dict:
         "url": url,
     }
 
-    # ── title ──────────────────────────────────────────────────────────────
-    for tag in ("h1", "h2", "h3"):
-        heading = soup.find(tag)
-        if heading:
-            module["title"] = clean(heading.get_text())
-            break
+    # ── Step 1: inspect the first heading ──────────────────────────────────
+    first_heading = soup.find(re.compile(r"^h[1-4]$"))
+    h1_code_part = ""
+    if first_heading:
+        h1_text = clean(first_heading.get_text())
+        m = MODUL_CODE_H1_RE.match(h1_text)
+        if m:
+            # h1 is "Modul CS5158-KP04, CS5158" – treat as code heading
+            h1_code_part = m.group(1)
+            module["code"] = extract_primary_code(h1_code_part)
+            if module["kp"] is None:
+                module["kp"] = extract_kp_from_code(h1_code_part)
+        else:
+            # h1 IS the real title (generic layout)
+            module["title"] = h1_text
 
-    # ── labelled rows in tables ────────────────────────────────────────────
-    for table in soup.find_all("table"):
-        for row in table.find_all("tr"):
-            cells = row.find_all(["th", "td"])
-            if len(cells) < 2:
-                continue
-            label = clean(cells[0].get_text())
-            value = clean(cells[1].get_text())
-            _apply_label_value(module, label, value)
+    # ── Step 2: if we got a code heading, find the real title ───────────────
+    if not module["title"]:
+        # (a) Next heading after h1
+        if first_heading:
+            for sib in first_heading.find_next_siblings(re.compile(r"^h[2-6]$")):
+                candidate = clean(sib.get_text())
+                if candidate and not MODUL_CODE_H1_RE.match(candidate):
+                    module["title"] = candidate
+                    break
 
-    # ── definition lists (<dl><dt>…<dd>…</dl>) ────────────────────────────
-    for dl in soup.find_all("dl"):
-        terms = dl.find_all("dt")
-        defs  = dl.find_all("dd")
-        for dt, dd in zip(terms, defs):
-            label = clean(dt.get_text())
-            value = clean(dd.get_text())
-            _apply_label_value(module, label, value)
+        # (b) Labeled row: "Modulbezeichnung", "Name", "Titel", …
+        # (handled in step 3 via _apply_label_value → TITLE_LABELS)
 
-    # ── fallback: scan all paragraphs / list items ─────────────────────────
-    if module["kp"] is None or not module["structure"]:
+    # ── Step 3: walk tables and dl for labeled fields ──────────────────────
+    _scan_structured_markup(soup, module)
+
+    # ── Step 4: fallback – scan page text for structure only ───────────────
+    # (Don't scan full text for KP – too many false positives)
+    if not module["structure"]:
         full_text = soup.get_text(" ", strip=True)
-        if module["kp"] is None:
-            module["kp"] = extract_kp(full_text)
-        if not module["structure"]:
-            module["structure"] = extract_structure(full_text)
+        module["structure"] = extract_structure(full_text)
+
+    # ── Step 5: if still no title, take the <title> tag (minus site name) ──
+    if not module["title"]:
+        page_title = soup.find("title")
+        if page_title:
+            parts = re.split(r"[|\-–]", page_title.get_text())
+            module["title"] = clean(parts[0])
 
     return module
 
 
-def _apply_label_value(module: dict, label: str, value: str) -> None:
-    """Update *module* dict from a (label, value) pair found on the page."""
-    if label_matches(label, KP_LABELS) and module["kp"] is None:
-        module["kp"] = extract_kp(value)
-
-    if label_matches(label, STRUCTURE_LABELS) and not module["structure"]:
-        module["structure"] = extract_structure(value) or value
-
-    if label_matches(label, COURSES_LABELS):
-        # Value may be a comma/semicolon/newline-separated list
-        courses = re.split(r"[;,\n]+", value)
-        seen = set(module["other_courses"])
-        for c in courses:
-            c = clean(c)
-            if c and c not in seen:
-                module["other_courses"].append(c)
-                seen.add(c)
-
-    # Module code heuristic: "Modulnummer", "Modul-Nr", "Kennzeichen", …
-    if re.search(r"modul.?(nummer|nr|code|kennung|kürzel)", label, re.I) and not module["code"]:
-        module["code"] = clean(value)
-
-
 # ---------------------------------------------------------------------------
-# Parser: index / listing page
+# Index-page parsers
 # ---------------------------------------------------------------------------
 
 def find_module_links(soup: BeautifulSoup, base_url: str) -> list[str]:
     """
-    Return a de-duplicated list of absolute URLs that look like module pages.
+    Return de-duplicated absolute URLs of module detail pages.
 
-    Tries three heuristics (in order of reliability):
-      1. Links whose href path contains "modul"
-      2. All links inside the main content area
-      3. Any <a> tag pointing to a same-host page
+    Priority:
+      1. Links matching /details/NNN/ (Uni Lübeck TYPO3 pattern)
+      2. Links matching generic /modulhandbuch/ sub-paths
+      3. All same-host links in the main content area
     """
     base_host = urlparse(base_url).netloc
     found: list[str] = []
     seen: set[str] = set()
 
     def add(href: str) -> None:
-        abs_url = urljoin(base_url, href)
+        abs_url = urljoin(base_url, href).rstrip("/") + "/"
         if abs_url not in seen and urlparse(abs_url).netloc == base_host:
+            # Skip the start page itself
+            if abs_url.rstrip("/") == base_url.rstrip("/"):
+                return
             seen.add(abs_url)
             found.append(abs_url)
 
-    # 1. Links matching module-URL patterns
-    for a in soup.find_all("a", href=MODULE_HREF_RE):
+    # 1. /details/NNN/ links (highest confidence for Uni Lübeck)
+    for a in soup.find_all("a", href=DETAIL_URL_RE):
         add(a["href"])
 
-    # 2. Links inside typical content containers
+    # 2. Generic modulhandbuch sub-links
+    if not found:
+        for a in soup.find_all("a", href=MODUL_URL_RE):
+            href = a.get("href", "")
+            if DETAIL_URL_RE.search(href) or href.count("/") > urlparse(base_url).path.count("/"):
+                add(href)
+
+    # 3. Any same-host sub-page inside main content
     if not found:
         content = (
             soup.find("main")
             or soup.find(id=re.compile(r"content|main|body", re.I))
-            or soup.find(class_=re.compile(r"content|main|body|typo3", re.I))
+            or soup.find(class_=re.compile(r"content|main|body", re.I))
             or soup
         )
         for a in content.find_all("a", href=True):
@@ -267,23 +351,30 @@ def find_module_links(soup: BeautifulSoup, base_url: str) -> list[str]:
             if href and not href.startswith(("#", "mailto:", "tel:")):
                 add(href)
 
+    # Filter out non-module URLs (PDFs, images, unrelated sections)
+    found = [
+        u for u in found
+        if not re.search(r"\.(pdf|docx?|xlsx?|png|jpg|svg|zip)$", u, re.I)
+    ]
     return found
 
 
 def parse_index_page(soup: BeautifulSoup, base_url: str) -> list[dict]:
     """
-    Try to extract module data directly from a single listing page.
+    Extract module data from a single listing page (no sub-pages).
 
-    This handles pages where every module is an accordion, card, or section
-    on the same page rather than having individual sub-pages.
+    Tries:
+      A) One <article>/<section> per module with an inner heading
+      B) A big <table> with one row per module
     """
     modules: list[dict] = []
 
-    # ── strategy A: one <article> / <section> per module ──────────────────
+    # ── A: block per module ────────────────────────────────────────────────
     candidates = soup.find_all(["article", "section"])
     if not candidates:
-        # Fallback: look for repeated <div class="…module…"> or similar
-        candidates = soup.find_all("div", class_=re.compile(r"modul|course|lehrveranstaltung", re.I))
+        candidates = soup.find_all(
+            "div", class_=re.compile(r"modul|course|lehrveranstaltung", re.I)
+        )
 
     for block in candidates:
         heading = block.find(re.compile(r"^h[1-6]$"))
@@ -297,34 +388,27 @@ def parse_index_page(soup: BeautifulSoup, base_url: str) -> list[dict]:
             "other_courses": [],
             "url": base_url,
         }
-        text = block.get_text(" ", strip=True)
-        if mod["kp"] is None:
-            mod["kp"] = extract_kp(text)
-        if not mod["structure"]:
-            mod["structure"] = extract_structure(text)
+        # Skip blocks whose heading is just an index/section title
+        if NON_MODULE_TITLE_RE.search(mod["title"]):
+            continue
 
-        # Labelled rows inside this block
-        for row in block.find_all("tr"):
-            cells = row.find_all(["th", "td"])
-            if len(cells) >= 2:
-                _apply_label_value(mod, clean(cells[0].get_text()), clean(cells[1].get_text()))
-        for dl in block.find_all("dl"):
-            for dt, dd in zip(dl.find_all("dt"), dl.find_all("dd")):
-                _apply_label_value(mod, clean(dt.get_text()), clean(dd.get_text()))
+        _scan_structured_markup(BeautifulSoup(str(block), "lxml"), mod)
+
+        if not mod["structure"]:
+            mod["structure"] = extract_structure(block.get_text(" "))
 
         if mod["title"]:
             modules.append(mod)
 
-    # ── strategy B: one big table (one row per module) ─────────────────────
+    # ── B: table-per-row ──────────────────────────────────────────────────
     if not modules:
         for table in soup.find_all("table"):
             headers = [clean(th.get_text()).lower() for th in table.find_all("th")]
             if not headers:
                 continue
-            # Map column index → field
             col_map: dict[int, str] = {}
             for i, h in enumerate(headers):
-                if any(k in h for k in ["titel", "name", "modul"]):
+                if any(k in h for k in ["titel", "name", "modul", "bezeichnung"]):
                     col_map[i] = "title"
                 elif any(k in h for k in KP_LABELS):
                     col_map[i] = "kp_raw"
@@ -332,12 +416,10 @@ def parse_index_page(soup: BeautifulSoup, base_url: str) -> list[dict]:
                     col_map[i] = "structure_raw"
                 elif any(k in h for k in COURSES_LABELS):
                     col_map[i] = "courses_raw"
-                elif any(k in h for k in ["code", "nummer", "nr.", "kennung"]):
+                elif re.search(r"code|nummer|nr\.|kennung|kürzel", h):
                     col_map[i] = "code"
-
             if "title" not in col_map.values():
                 continue
-
             for row in table.find_all("tr")[1:]:
                 cells = row.find_all(["td", "th"])
                 mod: dict = {
@@ -353,11 +435,13 @@ def parse_index_page(soup: BeautifulSoup, base_url: str) -> list[dict]:
                     elif field == "code":
                         mod["code"] = val
                     elif field == "kp_raw":
-                        mod["kp"] = extract_kp(val)
+                        mod["kp"] = extract_kp_from_value(val)
                     elif field == "structure_raw":
                         mod["structure"] = extract_structure(val) or val
                     elif field == "courses_raw":
-                        mod["other_courses"] = [c for c in re.split(r"[;,\n]+", val) if c.strip()]
+                        mod["other_courses"] = [
+                            c.strip() for c in re.split(r"[;,\n]+", val) if c.strip()
+                        ]
                 if mod["title"]:
                     modules.append(mod)
 
@@ -365,35 +449,28 @@ def parse_index_page(soup: BeautifulSoup, base_url: str) -> list[dict]:
 
 
 # ---------------------------------------------------------------------------
-# Main scraping logic
+# Main scraping orchestration
 # ---------------------------------------------------------------------------
 
 def scrape(start_url: str, delay: float = 1.0) -> list[dict]:
-    print(f"Fetching index page: {start_url}")
+    print(f"Fetching index: {start_url}")
     soup = fetch(start_url)
     if soup is None:
-        print("ERROR: Could not fetch the start URL.", file=sys.stderr)
+        print("ERROR: Could not fetch start URL.", file=sys.stderr)
         sys.exit(1)
 
-    # 1. Look for links to individual module sub-pages
     links = find_module_links(soup, start_url)
-    # Exclude the start URL itself and obvious non-module URLs
-    links = [
-        url for url in links
-        if url.rstrip("/") != start_url.rstrip("/")
-        and not re.search(r"\.(pdf|docx?|xlsx?|png|jpg|svg)$", url, re.I)
-    ]
-
     modules: list[dict] = []
 
     if links:
-        print(f"Found {len(links)} module sub-page link(s). Fetching each …")
+        print(f"Found {len(links)} module link(s). Fetching each …")
         for i, url in enumerate(links, 1):
-            print(f"  [{i}/{len(links)}] {url}")
-            sub_soup = fetch(url)
-            if sub_soup:
-                mod = parse_module_page(sub_soup, url)
-                if mod["title"]:
+            print(f"  [{i:3d}/{len(links)}] {url}")
+            sub = fetch(url)
+            if sub:
+                mod = parse_module_page(sub, url)
+                # Skip pages that look like overview/index pages
+                if mod["title"] and not NON_MODULE_TITLE_RE.search(mod["title"]):
                     modules.append(mod)
             if i < len(links):
                 time.sleep(delay)
@@ -401,14 +478,10 @@ def scrape(start_url: str, delay: float = 1.0) -> list[dict]:
         print("No sub-page links found – parsing current page directly.")
         modules = parse_index_page(soup, start_url)
 
-    # Remove entries where we couldn't find a title at all
-    modules = [m for m in modules if m["title"]]
-
-    # Normalise: ensure kp is int or null, structure is a string
+    # Normalise types
     for m in modules:
         if m["kp"] is not None:
             m["kp"] = int(m["kp"])
-        m["structure"] = m["structure"] or ""
 
     return modules
 
@@ -419,24 +492,19 @@ def scrape(start_url: str, delay: float = 1.0) -> list[dict]:
 
 def main() -> None:
     parser = argparse.ArgumentParser(
-        description="Scrape a Uni Lübeck Modulhandbuch page and save modules as JSON."
+        description="Scrape a Uni Lübeck Modulhandbuch and save modules as JSON."
     )
     parser.add_argument(
-        "url",
-        nargs="?",
-        default=DEFAULT_URL,
-        help="URL of the module handbook index page (default: Medieninformatik Master)",
+        "url", nargs="?", default=DEFAULT_URL,
+        help="URL of the module handbook index page",
     )
     parser.add_argument(
-        "--output", "-o",
-        default="modules.json",
-        help="Output JSON file path (default: modules.json)",
+        "--output", "-o", default="modules.json",
+        help="Output JSON file (default: modules.json)",
     )
     parser.add_argument(
-        "--delay", "-d",
-        type=float,
-        default=1.0,
-        help="Delay in seconds between HTTP requests (default: 1.0)",
+        "--delay", "-d", type=float, default=1.0,
+        help="Delay in seconds between requests (default: 1.0)",
     )
     args = parser.parse_args()
 
@@ -452,16 +520,14 @@ def main() -> None:
     with open(args.output, "w", encoding="utf-8") as f:
         json.dump(output, f, ensure_ascii=False, indent=2)
 
-    print(f"\nDone. Extracted {len(modules)} module(s) → {args.output}")
-
-    # Quick preview of first 3 modules
+    print(f"\nDone. {len(modules)} module(s) → {args.output}")
     if modules:
         print("\nPreview (first 3):")
         for m in modules[:3]:
             print(
-                f"  • {m['title']} | KP: {m['kp']} | "
-                f"Structure: {m['structure'] or '—'} | "
-                f"Other courses: {len(m['other_courses'])}"
+                f"  • {m['title']!r:45s} | KP: {str(m['kp']):4s} | "
+                f"Structure: {m['structure'] or '—':10s} | "
+                f"Code: {m['code']}"
             )
 
 

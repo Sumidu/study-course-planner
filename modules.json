@@ -1,0 +1,672 @@
+{
+  "source": "https://www2.uni-luebeck.de/studium/informatik-und-mathematik/medieninformatik/master-studiengang-medieninformatik/modulhandbuch/",
+  "generated_at": "2026-03-10T10:40:49.226102Z",
+  "note": "titles/codes/kp parsed from module list; structure and other_courses require scraping",
+  "total": 83,
+  "modules": [
+    {
+      "title": "Statistik 2",
+      "code": "PY2300",
+      "kp": 6,
+      "structure": "",
+      "category": "Mathematik",
+      "other_courses": []
+    },
+    {
+      "title": "Advanced Internet Technologies",
+      "code": "CS5158",
+      "kp": 4,
+      "structure": "",
+      "category": "Informatik",
+      "other_courses": []
+    },
+    {
+      "title": "Aktuelle Themen Data Science und KI",
+      "code": "CS5070",
+      "kp": 4,
+      "structure": "",
+      "category": "Informatik",
+      "other_courses": []
+    },
+    {
+      "title": "Computer Security",
+      "code": "CS4702",
+      "kp": 6,
+      "structure": "",
+      "category": "Informatik",
+      "other_courses": []
+    },
+    {
+      "title": "Computer Vision",
+      "code": "CS4250",
+      "kp": 4,
+      "structure": "",
+      "category": "Informatik",
+      "other_courses": []
+    },
+    {
+      "title": "Distributed AI",
+      "code": "CS5164",
+      "kp": 4,
+      "structure": "",
+      "category": "Informatik",
+      "other_courses": []
+    },
+    {
+      "title": "Drahtlose Sensornetze",
+      "code": "CS5153",
+      "kp": 4,
+      "structure": "",
+      "category": "Informatik",
+      "other_courses": []
+    },
+    {
+      "title": "Echtzeitsysteme",
+      "code": "CS4160",
+      "kp": 6,
+      "structure": "",
+      "category": "Informatik",
+      "other_courses": []
+    },
+    {
+      "title": "Grundlagen von Ontologien und Datenbanken für Informationssysteme",
+      "code": "CS5130",
+      "kp": 4,
+      "structure": "",
+      "category": "Informatik",
+      "other_courses": []
+    },
+    {
+      "title": "Hardware/Software Co-Design",
+      "code": "CS5170",
+      "kp": 4,
+      "structure": "",
+      "category": "Informatik",
+      "other_courses": []
+    },
+    {
+      "title": "Informationssysteme",
+      "code": "CS4130",
+      "kp": 6,
+      "structure": "",
+      "category": "Informatik",
+      "other_courses": []
+    },
+    {
+      "title": "Internet of Things",
+      "code": "CS5163",
+      "kp": 4,
+      "structure": "",
+      "category": "Informatik",
+      "other_courses": []
+    },
+    {
+      "title": "Kommunikations- und Systemsicherheit",
+      "code": "CS4701",
+      "kp": 6,
+      "structure": "",
+      "category": "Informatik",
+      "other_courses": []
+    },
+    {
+      "title": "Kryptographische Protokolle",
+      "code": "CS4210",
+      "kp": 6,
+      "structure": "",
+      "category": "Informatik",
+      "other_courses": []
+    },
+    {
+      "title": "Maschinelles Lernen",
+      "code": "CS5450",
+      "kp": 4,
+      "structure": "",
+      "category": "Informatik",
+      "other_courses": []
+    },
+    {
+      "title": "Mobile und verteilte Datenbanken",
+      "code": "CS4140",
+      "kp": 4,
+      "structure": "",
+      "category": "Informatik",
+      "other_courses": []
+    },
+    {
+      "title": "Mobilkommunikation",
+      "code": "CS5162",
+      "kp": 4,
+      "structure": "",
+      "category": "Informatik",
+      "other_courses": []
+    },
+    {
+      "title": "Mustererkennung",
+      "code": "CS4220",
+      "kp": 4,
+      "structure": "",
+      "category": "Informatik",
+      "other_courses": []
+    },
+    {
+      "title": "Nanonetzwerke",
+      "code": "CS5161",
+      "kp": 4,
+      "structure": "",
+      "category": "Informatik",
+      "other_courses": []
+    },
+    {
+      "title": "Runtime Verification und Testen",
+      "code": "CS4139",
+      "kp": 6,
+      "structure": "",
+      "category": "Informatik",
+      "other_courses": []
+    },
+    {
+      "title": "Semantic Web",
+      "code": "CS5140",
+      "kp": 4,
+      "structure": "",
+      "category": "Informatik",
+      "other_courses": []
+    },
+    {
+      "title": "Spezifikation und Modellierung",
+      "code": "CS4020",
+      "kp": 6,
+      "structure": "",
+      "category": "Informatik",
+      "other_courses": []
+    },
+    {
+      "title": "Sprach- und Audiosignalverarbeitung",
+      "code": "CS5260",
+      "kp": 4,
+      "structure": "",
+      "category": "Informatik",
+      "other_courses": []
+    },
+    {
+      "title": "Systemarchitekturen für verteilte Anwendungen",
+      "code": "CS4151",
+      "kp": 4,
+      "structure": "",
+      "category": "Informatik",
+      "other_courses": []
+    },
+    {
+      "title": "Verteilte Systeme",
+      "code": "CS4150",
+      "kp": 6,
+      "structure": "",
+      "category": "Informatik",
+      "other_courses": []
+    },
+    {
+      "title": "Web-Mining-Agenten",
+      "code": "CS5131",
+      "kp": 8,
+      "structure": "",
+      "category": "Informatik",
+      "other_courses": []
+    },
+    {
+      "title": "Emotionsregulation",
+      "code": "PY2905",
+      "kp": 4,
+      "structure": "",
+      "category": "Psychologie",
+      "other_courses": []
+    },
+    {
+      "title": "Entwicklungspsychologie",
+      "code": "PY1100",
+      "kp": 7,
+      "structure": "",
+      "category": "Psychologie",
+      "other_courses": []
+    },
+    {
+      "title": "Ingenieurpsychologie",
+      "code": "PY4210",
+      "kp": 5,
+      "structure": "",
+      "category": "Psychologie",
+      "other_courses": []
+    },
+    {
+      "title": "Motivation und Emotion in MCI",
+      "code": "PY5211",
+      "kp": 5,
+      "structure": "",
+      "category": "Psychologie",
+      "other_courses": []
+    },
+    {
+      "title": "Psychologie Sozialer Medien",
+      "code": "PY4710",
+      "kp": 4,
+      "structure": "",
+      "category": "Psychologie",
+      "other_courses": []
+    },
+    {
+      "title": "Aktuelle Forschungsthemen der Medieninformatik",
+      "code": "CS4635",
+      "kp": 4,
+      "structure": "",
+      "category": "Medieninformatik",
+      "other_courses": []
+    },
+    {
+      "title": "Ambient Computing",
+      "code": "CS4670",
+      "kp": 5,
+      "structure": "",
+      "category": "Medieninformatik",
+      "other_courses": []
+    },
+    {
+      "title": "Computer- und Medienkunst",
+      "code": "CS5650",
+      "kp": 4,
+      "structure": "",
+      "category": "Medieninformatik",
+      "other_courses": []
+    },
+    {
+      "title": "Cross Reality",
+      "code": "CS4655",
+      "kp": 5,
+      "structure": "",
+      "category": "Medieninformatik",
+      "other_courses": []
+    },
+    {
+      "title": "Digital Government",
+      "code": "CS5120",
+      "kp": 4,
+      "structure": "",
+      "category": "Medieninformatik",
+      "other_courses": []
+    },
+    {
+      "title": "Game Design",
+      "code": "CS5620",
+      "kp": 4,
+      "structure": "",
+      "category": "Medieninformatik",
+      "other_courses": []
+    },
+    {
+      "title": "Masterarbeit Medieninformatik",
+      "code": "CS5992",
+      "kp": null,
+      "structure": "",
+      "category": "Medieninformatik",
+      "other_courses": []
+    },
+    {
+      "title": "Medieninformatik-Praktikum",
+      "code": "CS5110",
+      "kp": 12,
+      "structure": "",
+      "category": "Medieninformatik",
+      "other_courses": []
+    },
+    {
+      "title": "Medienübertragung",
+      "code": "CS4555",
+      "kp": 4,
+      "structure": "",
+      "category": "Medieninformatik",
+      "other_courses": []
+    },
+    {
+      "title": "Open Data Hackathon",
+      "code": "CS5180",
+      "kp": 4,
+      "structure": "",
+      "category": "Medieninformatik",
+      "other_courses": []
+    },
+    {
+      "title": "Prozessführungssysteme",
+      "code": "CS4660",
+      "kp": 5,
+      "structure": "",
+      "category": "Medieninformatik",
+      "other_courses": []
+    },
+    {
+      "title": "Psychologie der Künstlichen Intelligenz",
+      "code": "CS5625",
+      "kp": 4,
+      "structure": "",
+      "category": "Medieninformatik",
+      "other_courses": []
+    },
+    {
+      "title": "Sicherheitskritische Mensch-Maschine-Kooperation",
+      "code": "CS5630",
+      "kp": 4,
+      "structure": "",
+      "category": "Medieninformatik",
+      "other_courses": []
+    },
+    {
+      "title": "Social Media und Future Web",
+      "code": "CS4645",
+      "kp": 5,
+      "structure": "",
+      "category": "Medieninformatik",
+      "other_courses": []
+    },
+    {
+      "title": "Vertiefungsprofil Medieninformatik 1",
+      "code": "CS4190",
+      "kp": 10,
+      "structure": "",
+      "category": "Medieninformatik",
+      "other_courses": []
+    },
+    {
+      "title": "Vertiefungsprofil Medieninformatik 2",
+      "code": "CS4790",
+      "kp": 10,
+      "structure": "",
+      "category": "Medieninformatik",
+      "other_courses": []
+    },
+    {
+      "title": "Deep Learning",
+      "code": "CS4295",
+      "kp": 4,
+      "structure": "",
+      "category": "Wahlpflicht",
+      "other_courses": []
+    },
+    {
+      "title": "Sequence Learning",
+      "code": "CS4575",
+      "kp": 4,
+      "structure": "",
+      "category": "Wahlpflicht",
+      "other_courses": []
+    },
+    {
+      "title": "Inclusive Design",
+      "code": "CS4610",
+      "kp": 5,
+      "structure": "",
+      "category": "Design",
+      "other_courses": []
+    },
+    {
+      "title": "Natural User Interfaces",
+      "code": "CS4110",
+      "kp": 5,
+      "structure": "",
+      "category": "Design",
+      "other_courses": []
+    },
+    {
+      "title": "Allgemeine BWL",
+      "code": "EC4001",
+      "kp": 4,
+      "structure": "",
+      "category": "Modulhandbuch - Master Angebot fächerübergreifend",
+      "other_courses": []
+    },
+    {
+      "title": "Blockchain for Business",
+      "code": "EC4550",
+      "kp": 4,
+      "structure": "",
+      "category": "Modulhandbuch - Master Angebot fächerübergreifend",
+      "other_courses": []
+    },
+    {
+      "title": "Businessplan",
+      "code": "EC5002",
+      "kp": 4,
+      "structure": "",
+      "category": "Modulhandbuch - Master Angebot fächerübergreifend",
+      "other_courses": []
+    },
+    {
+      "title": "Datenschutzrecht und Informationssicherheit",
+      "code": "CS3510",
+      "kp": 4,
+      "structure": "",
+      "category": "Modulhandbuch - Master Angebot fächerübergreifend",
+      "other_courses": []
+    },
+    {
+      "title": "Einführung in das Medizinprodukterecht",
+      "code": "ME4520",
+      "kp": 4,
+      "structure": "",
+      "category": "Modulhandbuch - Master Angebot fächerübergreifend",
+      "other_courses": []
+    },
+    {
+      "title": "Entrepreneurial Behavior",
+      "code": "EC4502",
+      "kp": 4,
+      "structure": "",
+      "category": "Modulhandbuch - Master Angebot fächerübergreifend",
+      "other_courses": []
+    },
+    {
+      "title": "Entrepreneurial und High-Tech-Marketing",
+      "code": "EC4510",
+      "kp": 6,
+      "structure": "",
+      "category": "Modulhandbuch - Master Angebot fächerübergreifend",
+      "other_courses": []
+    },
+    {
+      "title": "Entrepreneurship & Innovation",
+      "code": "EC4008",
+      "kp": 4,
+      "structure": "",
+      "category": "Modulhandbuch - Master Angebot fächerübergreifend",
+      "other_courses": []
+    },
+    {
+      "title": "Entrepreneurship in der digitalen Wirtschaft",
+      "code": "EC5010",
+      "kp": 4,
+      "structure": "",
+      "category": "Modulhandbuch - Master Angebot fächerübergreifend",
+      "other_courses": []
+    },
+    {
+      "title": "Entrepreneurship und Olympische Strategien",
+      "code": "EC4503",
+      "kp": 4,
+      "structure": "",
+      "category": "Modulhandbuch - Master Angebot fächerübergreifend",
+      "other_courses": []
+    },
+    {
+      "title": "Ethical Design Considerations in Medical Technology",
+      "code": "PS5430",
+      "kp": 4,
+      "structure": "",
+      "category": "Modulhandbuch - Master Angebot fächerübergreifend",
+      "other_courses": []
+    },
+    {
+      "title": "Ethik der Forschung",
+      "code": "PS4620",
+      "kp": 4,
+      "structure": "",
+      "category": "Modulhandbuch - Master Angebot fächerübergreifend",
+      "other_courses": []
+    },
+    {
+      "title": "Gesellschaftliche Aspekte der Nachhaltigkeit",
+      "code": "PS1110",
+      "kp": 4,
+      "structure": "",
+      "category": "Modulhandbuch - Master Angebot fächerübergreifend",
+      "other_courses": []
+    },
+    {
+      "title": "Innovations- und Technologiemanagement",
+      "code": "EC4007",
+      "kp": 4,
+      "structure": "",
+      "category": "Modulhandbuch - Master Angebot fächerübergreifend",
+      "other_courses": []
+    },
+    {
+      "title": "Interdisziplinäre Perspektiven auf ökologische Nachhaltigkeit",
+      "code": "PS1130",
+      "kp": 4,
+      "structure": "",
+      "category": "Modulhandbuch - Master Angebot fächerübergreifend",
+      "other_courses": []
+    },
+    {
+      "title": "Interkulturell kompetent in Studium, Beruf und Gesellschaft",
+      "code": "PS1050",
+      "kp": 4,
+      "structure": "",
+      "category": "Modulhandbuch - Master Angebot fächerübergreifend",
+      "other_courses": []
+    },
+    {
+      "title": "KI-Recht und digitale Transformation",
+      "code": "CS3520",
+      "kp": 4,
+      "structure": "",
+      "category": "Modulhandbuch - Master Angebot fächerübergreifend",
+      "other_courses": []
+    },
+    {
+      "title": "Nachhaltigkeitswissenschaften mit Schwerpunkt Ökologie & Biotechnologie",
+      "code": "PS1500",
+      "kp": 5,
+      "structure": "",
+      "category": "Modulhandbuch - Master Angebot fächerübergreifend",
+      "other_courses": []
+    },
+    {
+      "title": "Qualitätsmanagement",
+      "code": "EW2412",
+      "kp": 3,
+      "structure": "",
+      "category": "Modulhandbuch - Master Angebot fächerübergreifend",
+      "other_courses": []
+    },
+    {
+      "title": "Rechtliche Grundlagen für die IT",
+      "code": "CS5820",
+      "kp": 4,
+      "structure": "",
+      "category": "Modulhandbuch - Master Angebot fächerübergreifend",
+      "other_courses": []
+    },
+    {
+      "title": "Strategisches Management",
+      "code": "EC4004",
+      "kp": 4,
+      "structure": "",
+      "category": "Modulhandbuch - Master Angebot fächerübergreifend",
+      "other_courses": []
+    },
+    {
+      "title": "Studierendentagung",
+      "code": "PS5000",
+      "kp": 6,
+      "structure": "",
+      "category": "Modulhandbuch - Master Angebot fächerübergreifend",
+      "other_courses": []
+    },
+    {
+      "title": "Studium Generale",
+      "code": "PS4670",
+      "kp": 4,
+      "structure": "",
+      "category": "Modulhandbuch - Master Angebot fächerübergreifend",
+      "other_courses": []
+    },
+    {
+      "title": "Unternehmensplanspiel",
+      "code": "EC5020",
+      "kp": 6,
+      "structure": "",
+      "category": "Modulhandbuch - Master Angebot fächerübergreifend",
+      "other_courses": []
+    },
+    {
+      "title": "Verantwortungsvoller Umgang mit generativer KI - GPT & Co.: Grundlagen, Anwendungen, rechtliche und ethische Aspekte",
+      "code": "CS3208",
+      "kp": 4,
+      "structure": "",
+      "category": "Modulhandbuch - Master Angebot fächerübergreifend",
+      "other_courses": []
+    },
+    {
+      "title": "Verhandlungsführung",
+      "code": "EC4501",
+      "kp": 4,
+      "structure": "",
+      "category": "Modulhandbuch - Master Angebot fächerübergreifend",
+      "other_courses": []
+    },
+    {
+      "title": "Wirtschaftsrecht",
+      "code": "EC4010",
+      "kp": 4,
+      "structure": "",
+      "category": "Modulhandbuch - Master Angebot fächerübergreifend",
+      "other_courses": []
+    },
+    {
+      "title": "Wissenschaftliche Lehrtätigkeit",
+      "code": "PS5810",
+      "kp": 4,
+      "structure": "",
+      "category": "Modulhandbuch - Master Angebot fächerübergreifend",
+      "other_courses": []
+    },
+    {
+      "title": "Wissenschaftstheorie",
+      "code": "LS2807",
+      "kp": 4,
+      "structure": "",
+      "category": "Modulhandbuch - Master Angebot fächerübergreifend",
+      "other_courses": []
+    },
+    {
+      "title": "Über Rassismus und andere -Ismen",
+      "code": "PS4680",
+      "kp": 4,
+      "structure": "",
+      "category": "Modulhandbuch - Master Angebot fächerübergreifend",
+      "other_courses": []
+    },
+    {
+      "title": "Zukunftsfähige Energieversorgung",
+      "code": "PS5010",
+      "kp": 4,
+      "structure": "",
+      "category": "Modulhandbuch - Master Angebot fächerübergreifend",
+      "other_courses": []
+    },
+    {
+      "title": "Ökonomische Aspekte der Nachhaltigkeit",
+      "code": "PS1120",
+      "kp": 4,
+      "structure": "",
+      "category": "Modulhandbuch - Master Angebot fächerübergreifend",
+      "other_courses": []
+    }
+  ]
+}

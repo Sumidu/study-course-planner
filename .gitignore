@@ -10,9 +10,6 @@ build/
 .venv/
 venv/
 
-# Output files
-modules.json
-
 # OS
 .DS_Store
 Thumbs.db
