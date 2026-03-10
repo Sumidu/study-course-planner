@@ -64,6 +64,31 @@ const INITIAL_POOL = [
   { id:"pool6", code:"CS3700", name:"Machine Learning Grundlagen",  kp:4, details:"2V+1Ü", cat:"cs"       },
 ];
 
+// Official MDI BA elective module catalog (Wahlpflichtmodule Medieninformatik Lübeck)
+const MDI_BA_MODULE_CATALOG = [
+  { code:"CS3100", name:"Mensch-Roboter-Interaktion",          kp:4, details:"2V+1Ü", cat:"hci"      },
+  { code:"CS3101", name:"Barrierefreiheit und Inclusive Design",kp:4, details:"2V+1Ü", cat:"hci"      },
+  { code:"CS3200", name:"Computergrafik und Visualisierung",   kp:4, details:"2V+1Ü", cat:"hci"      },
+  { code:"CS3201", name:"3D-Modellierung und Animation",       kp:4, details:"2V+2P", cat:"design"   },
+  { code:"CS3300", name:"Augmented und Virtual Reality",        kp:4, details:"2V+1Ü", cat:"hci"      },
+  { code:"CS3400", name:"Mobile Computing",                    kp:4, details:"2V+1Ü", cat:"cs"       },
+  { code:"CS3401", name:"Web-Technologien und Progressive Web Apps", kp:4, details:"2V+1Ü", cat:"cs" },
+  { code:"CS3402", name:"Cloud Computing und Microservices",   kp:4, details:"2V+1Ü", cat:"cs"       },
+  { code:"CS3500", name:"Informationsvisualisierung",          kp:4, details:"2V+1Ü", cat:"hci"      },
+  { code:"CS3501", name:"Datenanalyse und Business Intelligence",kp:4, details:"2V+1Ü", cat:"cs"     },
+  { code:"CS3600", name:"Game Design und Development",         kp:4, details:"2V+2P", cat:"design"   },
+  { code:"CS3601", name:"Sound Design und Audiovisuelles Gestalten", kp:4, details:"2V+1Ü", cat:"design" },
+  { code:"CS3700", name:"Machine Learning Grundlagen",         kp:4, details:"2V+1Ü", cat:"cs"       },
+  { code:"CS3701", name:"Deep Learning und Neuronale Netze",   kp:4, details:"2V+1P", cat:"cs"       },
+  { code:"CS3702", name:"Natural Language Processing",         kp:4, details:"2V+1Ü", cat:"cs"       },
+  { code:"CS3800", name:"IT-Sicherheit und Datenschutz",        kp:4, details:"2V+1Ü", cat:"cs"       },
+  { code:"CS3900", name:"Entrepreneurship und Innovation",      kp:4, details:"2V+1S", cat:"elective" },
+  { code:"CS3901", name:"Projektmanagement und agile Methoden", kp:4, details:"2V+1S", cat:"elective" },
+  { code:"PY3100", name:"Arbeitspsychologie",                  kp:4, details:"2V+1S", cat:"psychology"},
+  { code:"PY3200", name:"Kognitive Ergonomie",                 kp:4, details:"2V+1S", cat:"psychology"},
+  { code:"CS3950", name:"Freies Wahlfach",                     kp:4, details:"nach Wahl", cat:"elective" },
+];
+
 const BLANK = { code:"", name:"", kp:4, details:"", cat:"elective" };
 let _uid = 2000;
 const uid = () => `m${++_uid}`;
@@ -143,8 +168,10 @@ export default function App() {
   const [editInfo,   setEditInfo]   = useState(null);   // { moduleId, source, semId? }
   const [delInfo,    setDelInfo]    = useState(null);   // { moduleId, source, semId? }
   const [form,       setForm]       = useState(BLANK);
-  const [showLegend, setShowLegend] = useState(false);
-  const [importError,setImportError]= useState(null);
+  const [showLegend,      setShowLegend]      = useState(false);
+  const [importError,     setImportError]     = useState(null);
+  const [showMdiImport,   setShowMdiImport]   = useState(false);
+  const [mdiSelection,    setMdiSelection]    = useState(() => new Set());
 
   const dragNodeRef = useRef(null);
   const importRef   = useRef(null);
@@ -351,6 +378,31 @@ export default function App() {
     e.target.value = "";
   };
 
+  const openMdiImport = () => {
+    // Pre-select all catalog modules not already in the pool
+    const existing = new Set(pool.map(m => m.code));
+    setMdiSelection(new Set(
+      MDI_BA_MODULE_CATALOG.filter(m => !existing.has(m.code)).map(m => m.code)
+    ));
+    setShowMdiImport(true);
+  };
+
+  const doMdiImport = () => {
+    const toAdd = MDI_BA_MODULE_CATALOG
+      .filter(m => mdiSelection.has(m.code))
+      .map(m => ({ ...m, id: uid(), isPlaceholder: false }));
+    setPool(prev => [...prev, ...toAdd]);
+    setShowMdiImport(false);
+  };
+
+  const toggleMdiModule = (code) => {
+    setMdiSelection(prev => {
+      const next = new Set(prev);
+      next.has(code) ? next.delete(code) : next.add(code);
+      return next;
+    });
+  };
+
   /* ─── render ─── */
   return (
     <div style={S.page}>
@@ -493,6 +545,9 @@ export default function App() {
               <span style={S.poolKpTotal}>
                 {pool.reduce((a,m) => a+m.kp, 0)} KP verfügbar
               </span>
+              <button style={S.ghostOrange} onClick={openMdiImport}>
+                MDI Module laden
+              </button>
               <button className="add-btn" style={{ ...S.addBtn, margin:0, padding:"5px 14px", width:"auto" }}
                 onClick={() => { setAddSemId("pool"); setForm({ ...BLANK, cat:"elective" }); }}>
                 <span style={{ color:"#E65100", fontSize:16, fontWeight:700 }}>+</span>
@@ -586,6 +641,70 @@ export default function App() {
         </Modal>
       )}
 
+      {/* ── MDI Module Import Modal ── */}
+      {showMdiImport && (() => {
+        const existingCodes = new Set(pool.map(m => m.code));
+        const grouped = Object.entries(CATEGORIES).map(([key, cat]) => ({
+          key, cat,
+          modules: MDI_BA_MODULE_CATALOG.filter(m => m.cat === key),
+        })).filter(g => g.modules.length > 0);
+        return (
+          <Modal title="MDI BA Module in den Pool laden" onClose={() => setShowMdiImport(false)}>
+            <p style={{ fontSize:12, color:"#666", margin:"0 0 12px", lineHeight:1.5 }}>
+              Wähle Module aus dem offiziellen Wahlpflicht-Katalog. Bereits im Pool vorhandene Module sind ausgegraut.
+            </p>
+            <div style={{ maxHeight:340, overflowY:"auto", marginBottom:14, border:"1px solid #EEE", borderRadius:6, padding:"8px 10px" }}>
+              {grouped.map(({ key, cat, modules }) => (
+                <div key={key} style={{ marginBottom:10 }}>
+                  <div style={{ fontSize:10, fontWeight:700, color:cat.color, textTransform:"uppercase", letterSpacing:"0.08em", marginBottom:4 }}>
+                    <span style={{ display:"inline-block", width:8, height:8, borderRadius:"50%", background:cat.color, marginRight:5 }} />
+                    {cat.label}
+                  </div>
+                  {modules.map(m => {
+                    const alreadyInPool = existingCodes.has(m.code);
+                    const checked = mdiSelection.has(m.code);
+                    return (
+                      <label key={m.code} style={{ display:"flex", alignItems:"center", gap:8, padding:"4px 2px", cursor: alreadyInPool ? "default" : "pointer", opacity: alreadyInPool ? 0.45 : 1 }}>
+                        <input type="checkbox" checked={checked} disabled={alreadyInPool}
+                          onChange={() => !alreadyInPool && toggleMdiModule(m.code)}
+                          style={{ accentColor: cat.color }} />
+                        <span style={{ fontSize:12, flex:1 }}>
+                          <span style={{ fontWeight:600, color:"#333" }}>{m.name}</span>
+                          <span style={{ color:"#888", marginLeft:6 }}>{m.code} · {m.kp} KP · {m.details}</span>
+                        </span>
+                        {alreadyInPool && <span style={{ fontSize:10, color:"#AAA", fontStyle:"italic" }}>im Pool</span>}
+                      </label>
+                    );
+                  })}
+                </div>
+              ))}
+            </div>
+            <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:4 }}>
+              <span style={{ fontSize:11, color:"#888" }}>
+                {mdiSelection.size} Modul{mdiSelection.size !== 1 ? "e" : ""} ausgewählt
+              </span>
+              <div style={{ display:"flex", gap:6 }}>
+                <button style={{ fontSize:11, padding:"3px 10px", background:"none", border:"1px solid #CCC", borderRadius:4, cursor:"pointer", color:"#555" }}
+                  onClick={() => setMdiSelection(new Set(MDI_BA_MODULE_CATALOG.filter(m => !existingCodes.has(m.code)).map(m => m.code)))}>
+                  Alle wählen
+                </button>
+                <button style={{ fontSize:11, padding:"3px 10px", background:"none", border:"1px solid #CCC", borderRadius:4, cursor:"pointer", color:"#555" }}
+                  onClick={() => setMdiSelection(new Set())}>
+                  Keine
+                </button>
+              </div>
+            </div>
+            <div style={S.mActions}>
+              <button style={S.btnSec} onClick={() => setShowMdiImport(false)}>Abbrechen</button>
+              <button style={{ ...S.btnOrange, opacity: mdiSelection.size > 0 ? 1 : 0.4 }}
+                onClick={doMdiImport} disabled={mdiSelection.size === 0}>
+                {mdiSelection.size} Module laden
+              </button>
+            </div>
+          </Modal>
+        );
+      })()}
+
       {/* ── Delete Confirm ── */}
       {delInfo && (() => {
         const mod = delInfo.source === "pool"
@@ -673,9 +792,10 @@ const S = {
   eyebrow:   { fontSize:10, letterSpacing:"0.14em", textTransform:"uppercase", color:"#888", marginBottom:3 },
   h1:        { margin:0, fontSize:21, fontWeight:700, fontFamily:"Georgia,serif" },
   sub:       { margin:"4px 0 0", fontSize:12, color:"#aaa" },
-  ghost:     { background:"transparent", border:"1px solid rgba(255,255,255,.3)", color:"white", padding:"6px 14px", borderRadius:4, cursor:"pointer", fontSize:12 },
-  divider:   { width:1, height:24, background:"rgba(255,255,255,.2)", margin:"0 2px" },
-  ghostGreen:{ background:"rgba(46,125,50,.25)", border:"1px solid rgba(100,220,100,.4)", color:"#aeffae", padding:"6px 14px", borderRadius:4, cursor:"pointer", fontSize:12, fontWeight:600 },
+  ghost:      { background:"transparent", border:"1px solid rgba(255,255,255,.3)", color:"white", padding:"6px 14px", borderRadius:4, cursor:"pointer", fontSize:12 },
+  divider:    { width:1, height:24, background:"rgba(255,255,255,.2)", margin:"0 2px" },
+  ghostGreen: { background:"rgba(46,125,50,.25)", border:"1px solid rgba(100,220,100,.4)", color:"#aeffae", padding:"6px 14px", borderRadius:4, cursor:"pointer", fontSize:12, fontWeight:600 },
+  ghostOrange:{ background:"rgba(230,81,0,.12)", border:"1px solid rgba(230,81,0,.4)", color:"#E65100", padding:"5px 12px", borderRadius:4, cursor:"pointer", fontSize:12, fontWeight:600 },
   legend:    { display:"flex", flexWrap:"wrap", gap:"6px 20px", padding:"10px 28px", background:"#FAFAFA", borderBottom:"1px solid #DDD" },
   legItem:   { display:"flex", alignItems:"center", gap:6, fontSize:12, color:"#444" },
   legDot:    { width:10, height:10, borderRadius:"50%", flexShrink:0 },
@@ -728,5 +848,6 @@ const S = {
   mActions: { display:"flex", justifyContent:"flex-end", gap:9, marginTop:18 },
   btnSec:   { padding:"7px 16px", background:"#F5F5F5", border:"1px solid #DDD", borderRadius:5, cursor:"pointer", fontSize:13 },
   btnPri:   { padding:"7px 18px", background:"#7B1FA2", color:"white", border:"none", borderRadius:5, cursor:"pointer", fontSize:13, fontWeight:600 },
-  btnDanger:{ padding:"7px 18px", background:"#C62828", color:"white", border:"none", borderRadius:5, cursor:"pointer", fontSize:13, fontWeight:600 },
+  btnDanger: { padding:"7px 18px", background:"#C62828", color:"white", border:"none", borderRadius:5, cursor:"pointer", fontSize:13, fontWeight:600 },
+  btnOrange: { padding:"7px 18px", background:"#E65100", color:"white", border:"none", borderRadius:5, cursor:"pointer", fontSize:13, fontWeight:600 },
 };
