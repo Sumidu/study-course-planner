@@ -452,7 +452,7 @@ def parse_index_page(soup: BeautifulSoup, base_url: str) -> list[dict]:
 # Main scraping orchestration
 # ---------------------------------------------------------------------------
 
-def scrape(start_url: str, delay: float = 1.0) -> list[dict]:
+def scrape(start_url: str, delay: float = 1.0, limit: int | None = None) -> list[dict]:
     print(f"Fetching index: {start_url}")
     soup = fetch(start_url)
     if soup is None:
@@ -463,7 +463,11 @@ def scrape(start_url: str, delay: float = 1.0) -> list[dict]:
     modules: list[dict] = []
 
     if links:
-        print(f"Found {len(links)} module link(s). Fetching each …")
+        if limit:
+            print(f"Found {len(links)} module link(s). Test mode: fetching first {limit} …")
+            links = links[:limit]
+        else:
+            print(f"Found {len(links)} module link(s). Fetching each …")
         for i, url in enumerate(links, 1):
             print(f"  [{i:3d}/{len(links)}] {url}")
             sub = fetch(url)
@@ -477,6 +481,8 @@ def scrape(start_url: str, delay: float = 1.0) -> list[dict]:
     else:
         print("No sub-page links found – parsing current page directly.")
         modules = parse_index_page(soup, start_url)
+        if limit:
+            modules = modules[:limit]
 
     # Normalise types
     for m in modules:
@@ -506,9 +512,13 @@ def main() -> None:
         "--delay", "-d", type=float, default=1.0,
         help="Delay in seconds between requests (default: 1.0)",
     )
+    parser.add_argument(
+        "--limit", "-n", "--test", type=int, default=None, metavar="N",
+        help="Only fetch the first N module pages (quick test run)",
+    )
     args = parser.parse_args()
 
-    modules = scrape(args.url, delay=args.delay)
+    modules = scrape(args.url, delay=args.delay, limit=args.limit)
 
     output = {
         "source": args.url,
